@@ -1,2 +1,4 @@
 moodle-dl
 uvicorn
+fastapi
+pydantic
