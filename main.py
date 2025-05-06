@@ -7,7 +7,8 @@ from pydantic import BaseModel
 app = FastAPI()
 
 class RunRequest(BaseModel):
-    course_ids: list[int] = None  # Optional: später wenn du nur bestimmte Kurse laden willst
+    # Optional parameters for future extensions (e.g., specific courses)
+    course_ids: list[int] = None
 
 @app.get("/")
 def read_root():
@@ -15,28 +16,57 @@ def read_root():
 
 @app.post("/run")
 def run_moodle_dl(req: RunRequest):
+    # Dynamically build config.json from environment variables
     config_content = {
-        "url": f"https://{os.getenv('MOODLE_DOMAIN')}{os.getenv('MOODLE_PATH')}",
+        "moodle_domain": os.getenv("MOODLE_DOMAIN"),
+        "moodle_path": os.getenv("MOODLE_PATH"),
         "token": os.getenv("MOODLE_TOKEN"),
-        "download_dir": os.getenv("DOWNLOAD_PATH"),
-        "verbose": os.getenv("VERBOSE", "false") == "true"
+        "path": os.getenv("DOWNLOAD_PATH", "/tmp/moodle"),
+        "verbose": os.getenv("VERBOSE", "false").lower() == "true"
     }
-
-    # Schreibe config.json ins aktuelle Verzeichnis
+    # Write config.json
     with open("config.json", "w") as f:
         import json
         json.dump(config_content, f)
 
-    # moodle-dl ausführen
-    process = subprocess.run(
-        ["moodle-dl", "-c", "config.json"],
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        text=True
-    )
+    # Execute moodle-dl
+    cmd = ["moodle-dl", "-c", "config.json"]
+    if config_content["verbose"]:
+        cmd.append("--verbose")
 
+    result = subprocess.run(cmd, capture_output=True, text=True)
     return {
-        "returncode": process.returncode,
-        "stdout": process.stdout,
-        "stderr": process.stderr
+        "returncode": result.returncode,
+        "stdout": result.stdout,
+        "stderr": result.stderr
     }
+
+if __name__ == "__main__":
+    import uvicorn
+    port = int(os.getenv("PORT", 8000))
+    uvicorn.run(app, host="0.0.0.0", port=port)
+
+# requirements.txt
+fastapi
+uvicorn
+moodle-dl
+
+# render.yaml
+services:
+  - type: web
+    name: moodle-dl-service
+    env: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: python main.py
+    envVars:
+      - key: MOODLE_DOMAIN
+        sync: true
+      - key: MOODLE_PATH
+        sync: true
+      - key: MOODLE_TOKEN
+        sync: true
+      - key: DOWNLOAD_PATH
+        sync: true
+      - key: VERBOSE
+        sync: true
