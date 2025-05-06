@@ -45,28 +45,3 @@ if __name__ == "__main__":
     import uvicorn
     port = int(os.getenv("PORT", 8000))
     uvicorn.run(app, host="0.0.0.0", port=port)
-
-# requirements.txt
-fastapi
-uvicorn
-moodle-dl
-
-# render.yaml
-services:
-  - type: web
-    name: moodle-dl-service
-    env: python
-    plan: free
-    buildCommand: pip install -r requirements.txt
-    startCommand: python main.py
-    envVars:
-      - key: MOODLE_DOMAIN
-        sync: true
-      - key: MOODLE_PATH
-        sync: true
-      - key: MOODLE_TOKEN
-        sync: true
-      - key: DOWNLOAD_PATH
-        sync: true
-      - key: VERBOSE
-        sync: true
