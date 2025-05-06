@@ -1,9 +1,18 @@
 services:
   - type: web
     name: moodle-dl-service
-    runtime: python
-    buildCommand: ""
-    startCommand: "moodle-dl --help"
+    env: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn main:app --host 0.0.0.0 --port 10000
+    plan: free
     envVars:
-      - key: PYTHON_VERSION
-        value: 3.11
+      - key: MOODLE_DOMAIN
+        sync: true
+      - key: MOODLE_PATH
+        sync: true
+      - key: MOODLE_TOKEN
+        sync: true
+      - key: DOWNLOAD_PATH
+        sync: true
+      - key: VERBOSE
+        sync: true
