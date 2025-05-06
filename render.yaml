@@ -1,0 +1,9 @@
+services:
+  - type: web
+    name: moodle-dl-service
+    runtime: python
+    buildCommand: ""
+    startCommand: "moodle-dl --help"
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11
