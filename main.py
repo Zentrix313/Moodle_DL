@@ -1,53 +1,42 @@
 # main.py
-from flask import Flask, request, jsonify
-import subprocess
 import os
+import subprocess
+from fastapi import FastAPI
+from pydantic import BaseModel
 
-app = Flask(__name__)
+app = FastAPI()
 
-# Environment variables for moodle-dl (configured in Render)
-MOODLE_URL = os.getenv('MOODLE_URL')
-MOODLE_DOMAIN = os.getenv('MOODLE_DOMAIN')
-MOODLE_PATH = os.getenv('MOODLE_PATH')
-MOODLE_TOKEN = os.getenv('MOODLE_TOKEN')
-DOWNLOAD_PATH = os.getenv('DOWNLOAD_PATH', '/tmp/moodle')
-VERBOSE = os.getenv('VERBOSE', 'false').lower() == 'true'
+class RunRequest(BaseModel):
+    course_ids: list[int] = None  # Optional: später wenn du nur bestimmte Kurse laden willst
 
-@app.route('/run', methods=['POST'])
-def run_moodle_dl():
-    # Build config.json dynamically
-    config = {
-        "moodle_domain": MOODLE_DOMAIN,
-        "moodle_path": MOODLE_PATH,
-        "token": MOODLE_TOKEN,
-        "path": DOWNLOAD_PATH,
-        "verbose": VERBOSE
+@app.get("/")
+def read_root():
+    return {"message": "Moodle-DL Service is running!"}
+
+@app.post("/run")
+def run_moodle_dl(req: RunRequest):
+    config_content = {
+        "url": f"https://{os.getenv('MOODLE_DOMAIN')}{os.getenv('MOODLE_PATH')}",
+        "token": os.getenv("MOODLE_TOKEN"),
+        "download_dir": os.getenv("DOWNLOAD_PATH"),
+        "verbose": os.getenv("VERBOSE", "false") == "true"
     }
-    with open('config.json', 'w') as f:
+
+    # Schreibe config.json ins aktuelle Verzeichnis
+    with open("config.json", "w") as f:
         import json
-        json.dump(config, f)
+        json.dump(config_content, f)
 
-    # Execute moodle-dl
-    cmd = ['moodle-dl']
-    if VERBOSE:
-        cmd.append('--verbose')
+    # moodle-dl ausführen
+    process = subprocess.run(
+        ["moodle-dl", "-c", "config.json"],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True
+    )
 
-    result = subprocess.run(cmd, capture_output=True, text=True)
-    return jsonify({
-        'stdout': result.stdout,
-        'stderr': result.stderr,
-        'returncode': result.returncode
-    }), 200
-
-@app.route('/', methods=['GET'])
-def index():
-    return 'Moodle-DL Service is running!', 200
-
-if __name__ == '__main__':
-    # Bind to port from environment or default 8000
-    port = int(os.getenv('PORT', 8000))
-    app.run(host='0.0.0.0', port=port)
-
-# requirements.txt
-# flask
-# moodle-dl
+    return {
+        "returncode": process.returncode,
+        "stdout": process.stdout,
+        "stderr": process.stderr
+    }
