@@ -30,7 +30,7 @@ def run_moodle_dl(req: RunRequest):
         json.dump(config_content, f)
 
     # Execute moodle-dl
-    cmd = ["moodle-dl", "-c", "config.json"]
+    cmd = ["moodle-dl"]
     if config_content["verbose"]:
         cmd.append("--verbose")
 
