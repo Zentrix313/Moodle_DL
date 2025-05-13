@@ -46,6 +46,17 @@ def run_moodle_dl(req: RunRequest):
         except Exception:
             print(f"Could not delete {full}")
 
+        # 3.1) Alte Lock-Datei entfernen, falls sie noch existiert
+    # moodle-dl erzeugt running.lock in seinem misc-Folder (normalerweise im Arbeitsverzeichnis)
+    lock_path = os.path.join(os.getcwd(), 'running.lock')
+    if os.path.exists(lock_path):
+        try:
+            os.remove(lock_path)
+            print(f"Removed stale lock: {lock_path}")
+        except Exception as e:
+            print(f"Failed to remove lock {lock_path}: {e}")
+
+
     # 4) moodle-dl ausführen
     cmd = ["moodle-dl"]
     if config["verbose"]:
