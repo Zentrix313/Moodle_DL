@@ -39,6 +39,12 @@ def run_moodle_dl(req: RunRequest):
                             stdout=subprocess.PIPE,
                             stderr=subprocess.PIPE,
                             text=True)
+    # direkt nach subprocess.run(...)
+    print("MOODLE-DL OUTPUT:")
+    print(result.stdout)
+    print("MOODLE-DL ERRORS:")
+    print(result.stderr)
+
     if result.returncode != 0:
         return {"returncode": result.returncode, "stdout": result.stdout, "stderr": result.stderr}
 
