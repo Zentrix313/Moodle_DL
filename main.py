@@ -49,9 +49,21 @@ def run_moodle_dl(req: RunRequest):
 
 @app.get("/download")
 def download_zip():
-    # Find latest ZIP in working directory
-    zips = sorted([f for f in os.listdir('.') if f.startswith('moodle_') and f.endswith('.zip')])
+    # Suche alle ZIPs im aktuellen Verzeichnis
+    zips = sorted(glob.glob("moodle_*.zip"))
     if not zips:
-        return {"error": "no zip found"}
-    latest = zips[-1]
-    return FileResponse(latest, media_type="application/zip", filename=latest)
+        # Keine ZIPs gefunden -> 404
+        return {"error": "Keine ZIP-Datei gefunden"}, 404
+
+    latest = zips[-1]  # die neueste ZIP
+    return FileResponse(
+        path=latest,
+        media_type="application/zip",
+        filename=latest
+    )
+
+
+if __name__ == "__main__":
+    import uvicorn
+    port = int(os.getenv("PORT", 8000))
+    uvicorn.run(app, host="0.0.0.0", port=port)
