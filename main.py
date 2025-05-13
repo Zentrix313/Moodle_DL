@@ -20,7 +20,11 @@ def health_check():
 
 @app.post("/run")
 def run_moodle_dl(req: RunRequest):
-    # Write config.json
+    # 1) Arbeitsverzeichnis und Download-Ordner setzen
+    DOWNLOAD_DIR = os.getenv("DOWNLOAD_PATH", "/tmp/moodle")
+    os.makedirs(DOWNLOAD_DIR, exist_ok=True)
+    
+    # 2) Konfigurationsdatei schreiben
     config = {
         "moodle_domain": os.getenv("MOODLE_DOMAIN"),
         "moodle_path": os.getenv("MOODLE_PATH"),
@@ -31,28 +35,45 @@ def run_moodle_dl(req: RunRequest):
     with open("config.json", "w") as f:
         json.dump(config, f)
 
-    # Run moodle-dl
+    # 3) Vorherige Dateien entfernen, damit wir wirklich neu laden
+    for f in os.listdir(DOWNLOAD_DIR):
+        full = os.path.join(DOWNLOAD_DIR, f)
+        try:
+            if os.path.isdir(full):
+                shutil.rmtree(full)
+            else:
+                os.remove(full)
+        except Exception:
+            print(f"Could not delete {full}")
+
+    # 4) moodle-dl ausführen
     cmd = ["moodle-dl"]
     if config["verbose"]:
         cmd.append("--verbose")
-    result = subprocess.run(cmd, cwd=os.getcwd(),
-                            stdout=subprocess.PIPE,
-                            stderr=subprocess.PIPE,
-                            text=True)
-    # direkt nach subprocess.run(...)
-    print("MOODLE-DL OUTPUT:")
+    result = subprocess.run(
+        cmd, cwd=os.getcwd(),
+        stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True
+    )
+
+    # 5) Debug: gib stdout und Verzeichnisinhalt in den Logs aus
+    print("=== MOODLE-DL STDOUT ===")
     print(result.stdout)
-    print("MOODLE-DL ERRORS:")
+    print("=== MOODLE-DL STDERR ===")
     print(result.stderr)
+    print("=== CONTENT OF DOWNLOAD_DIR ===")
+    for root, dirs, files in os.walk(DOWNLOAD_DIR):
+        for name in files:
+            print(os.path.join(root, name))
 
     if result.returncode != 0:
         return {"returncode": result.returncode, "stdout": result.stdout, "stderr": result.stderr}
 
-    # Build ZIP for download
+    # 6) ZIP bauen
     timestamp = datetime.utcnow().strftime("%Y%m%dT%H%M%SZ")
     zip_name = f"moodle_{timestamp}"
     shutil.make_archive(zip_name, 'zip', DOWNLOAD_DIR)
     return {"returncode": 0, "zip_file": f"{zip_name}.zip"}
+
 
 @app.get("/download")
 def download_zip():
